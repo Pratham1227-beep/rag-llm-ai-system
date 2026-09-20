@@ -59,3 +59,56 @@ class OKFDocument(BaseModel):
     def get_full_text(self) -> str:
         """Returns aggregated text across all pages."""
         return "\n\n".join([f"--- Page {p.page_number} ---\n{p.text}" for p in self.page_contents])
+
+    def to_markdown(self) -> str:
+        """Serializes the OKF Document into standard Open Knowledge Format Markdown with frontmatter."""
+        meta = self.metadata
+        md_lines = [
+            "---",
+            f"document_id: \"{meta.document_id}\"",
+            f"filename: \"{meta.filename}\"",
+            f"file_type: \"{meta.file_type}\"",
+            f"file_size_bytes: {meta.file_size_bytes}",
+            f"total_pages: {meta.total_pages}",
+            f"upload_timestamp: \"{meta.upload_timestamp}\"",
+            f"okf_version: \"{self.okf_version}\"",
+            "---",
+            "",
+            f"# {meta.title or meta.filename}",
+            ""
+        ]
+
+        if self.sections:
+            for sec in self.sections:
+                heading = "#" * min(sec.level + 1, 6)
+                md_lines.append(f"{heading} {sec.title} *(Page {sec.page_number})*")
+                if sec.content:
+                    md_lines.append("")
+                    md_lines.append(sec.content)
+                md_lines.append("")
+
+        if self.tables:
+            md_lines.append("## Structured Tables")
+            md_lines.append("")
+            for tbl in self.tables:
+                caption = f" - {tbl.caption}" if tbl.caption else ""
+                md_lines.append(f"### Table: `{tbl.table_id}` *(Page {tbl.page_number})*{caption}")
+                md_lines.append("")
+                if tbl.headers:
+                    md_lines.append("| " + " | ".join(tbl.headers) + " |")
+                    md_lines.append("| " + " | ".join(["---"] * len(tbl.headers)) + " |")
+                    for row in tbl.rows:
+                        # Clean cell values
+                        cleaned_row = [str(c).replace("\n", " ") for c in row]
+                        md_lines.append("| " + " | ".join(cleaned_row) + " |")
+                    md_lines.append("")
+
+        if not self.sections and self.page_contents:
+            for p in self.page_contents:
+                ocr_badge = " *(OCR Extracted)*" if p.has_ocr else ""
+                md_lines.append(f"## Page {p.page_number}{ocr_badge}")
+                md_lines.append("")
+                md_lines.append(p.text)
+                md_lines.append("")
+
+        return "\n".join(md_lines)

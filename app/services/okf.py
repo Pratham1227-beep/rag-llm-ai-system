@@ -22,7 +22,13 @@ class OKFService:
             filename=filename,
             file_type=file_type,
             file_size_bytes=file_size_bytes,
-            total_pages=extracted_data.get("total_pages", 1)
+            total_pages=extracted_data.get("total_pages", 1),
+            title=extracted_data.get("pdf_metadata", {}).get("title"),
+            author=extracted_data.get("pdf_metadata", {}).get("author"),
+            custom_metadata={
+                k: v for k, v in extracted_data.get("pdf_metadata", {}).items()
+                if k not in ("title", "author")
+            }
         )
 
         sections = [
@@ -50,10 +56,13 @@ class OKFService:
     @classmethod
     def save_okf_document(cls, okf_doc: OKFDocument) -> Path:
         settings.ensure_directories()
-        file_path = Path(settings.OKF_STORE_DIR) / f"{okf_doc.metadata.document_id}.json"
-        with open(file_path, "w", encoding="utf-8") as f:
+        json_path = Path(settings.OKF_STORE_DIR) / f"{okf_doc.metadata.document_id}.json"
+        md_path = Path(settings.OKF_STORE_DIR) / f"{okf_doc.metadata.document_id}.md"
+        with open(json_path, "w", encoding="utf-8") as f:
             f.write(okf_doc.model_dump_json(indent=2))
-        return file_path
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(okf_doc.to_markdown())
+        return json_path
 
     @classmethod
     def load_okf_document(cls, doc_id: str) -> Optional[OKFDocument]:

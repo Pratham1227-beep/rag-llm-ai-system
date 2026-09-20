@@ -97,3 +97,42 @@ class IngestionService:
             if extra_meta:
                 registry[doc_id].update(extra_meta)
             _save_registry(registry)
+
+    @classmethod
+    def delete_document(cls, doc_id: str) -> bool:
+        """Delete a document: uploaded file, registry entry, OKF files, and vector chunks."""
+        registry = _load_registry()
+        if doc_id not in registry:
+            return False
+
+        record = registry[doc_id]
+
+        # 1. Delete uploaded file from disk
+        file_path = Path(record.get("file_path", ""))
+        if file_path.exists():
+            file_path.unlink(missing_ok=True)
+
+        # 2. Delete OKF JSON and Markdown files
+        okf_json = Path(settings.OKF_STORE_DIR) / f"{doc_id}.json"
+        okf_md = Path(settings.OKF_STORE_DIR) / f"{doc_id}.md"
+        okf_json.unlink(missing_ok=True)
+        okf_md.unlink(missing_ok=True)
+
+        # 3. Remove vector chunks from ChromaDB
+        try:
+            from app.services.vectordb import VectorDBService
+            collection = VectorDBService.get_collection()
+            # Get all chunk IDs for this document
+            existing = collection.get(
+                where={"document_id": doc_id},
+                include=[]
+            )
+            if existing and existing.get("ids"):
+                collection.delete(ids=existing["ids"])
+        except Exception:
+            pass  # Vector DB cleanup is best-effort
+
+        # 4. Remove from registry
+        del registry[doc_id]
+        _save_registry(registry)
+        return True

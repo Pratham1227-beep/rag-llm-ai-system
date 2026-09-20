@@ -15,6 +15,8 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 def upload_document(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
     record = IngestionService.save_uploaded_file(file)
     return DocumentUploadResponse(
         document_id=record["document_id"],
@@ -106,3 +108,16 @@ def get_document_okf(document_id: str):
     if not okf_doc:
         raise HTTPException(status_code=404, detail=f"OKF record for document '{document_id}' not found.")
     return okf_doc
+
+@router.delete("/{document_id}")
+def delete_document(document_id: str):
+    """Delete a document: uploaded file, OKF records, and vector DB chunks."""
+    deleted = IngestionService.delete_document(document_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Document with ID '{document_id}' not found.")
+    return {
+        "document_id": document_id,
+        "status": "deleted",
+        "message": "Document, OKF records, and vector chunks deleted successfully."
+    }
+

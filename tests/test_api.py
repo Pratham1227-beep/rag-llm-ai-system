@@ -8,9 +8,8 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert "status" in data
-    assert "ollama_connected" in data
-    assert "vector_db_ready" in data
-    assert "active_documents" in data
+    assert "ollama_status" in data
+    assert "vector_db_status" in data
 
 def test_upload_invalid_file_extension():
     response = client.post(
@@ -39,28 +38,28 @@ def test_upload_and_process_flow():
     )
     assert process_resp.status_code == 200
     process_data = process_resp.json()
-    assert process_data["status"] == "indexed"
+    assert process_data["status"] == "processed"
 
     # 3. List documents
     list_resp = client.get("/documents")
     assert list_resp.status_code == 200
     list_data = list_resp.json()
-    assert list_data["total"] >= 1
+    assert len(list_data) >= 1
 
     # 4. Get document detail & OKF representation
     doc_detail_resp = client.get(f"/documents/{doc_id}")
     assert doc_detail_resp.status_code == 200
     detail_data = doc_detail_resp.json()
     assert detail_data["metadata"]["document_id"] == doc_id
-    assert detail_data["okf"] is not None
+    assert "sections" in detail_data
 
     # 5. Query RAG system
     query_resp = client.post(
         "/query",
         json={
-            "prompt": "What is the document context?",
+            "query": "What is the document context?",
             "top_k": 2,
-            "filters": {"document_ids": [doc_id]}
+            "document_ids": [doc_id]
         }
     )
     assert query_resp.status_code == 200

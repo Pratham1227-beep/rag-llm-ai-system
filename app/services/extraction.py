@@ -48,30 +48,76 @@ class ExtractionService:
         pages_content = []
         sections = []
         tables = []
+        pdf_metadata: Dict[str, Any] = {}
         
         # 1. Primary Text & Section Extraction using PyMuPDF if available
         if HAS_PYMUPDF:
             doc = fitz.open(file_path)
             total_pages = len(doc)
             
+            # Extract PDF document metadata
+            meta = doc.metadata
+            if meta:
+                if meta.get("title"):
+                    pdf_metadata["title"] = meta["title"]
+                if meta.get("author"):
+                    pdf_metadata["author"] = meta["author"]
+                if meta.get("subject"):
+                    pdf_metadata["subject"] = meta["subject"]
+                if meta.get("keywords"):
+                    pdf_metadata["keywords"] = meta["keywords"]
+                if meta.get("creator"):
+                    pdf_metadata["creator"] = meta["creator"]
+
             for page_num in range(total_pages):
                 page = doc[page_num]
                 page_text = page.get_text("text") or ""
                 
-                # Check for headers/sections using font size / blocks
+                # Collect all text blocks with position metadata for section detection
                 blocks = page.get_text("blocks")
-                for block in blocks:
-                    block_text = block[4].strip()
-                    # Heuristic for section titles: short lines starting with numbers or capital title
-                    if len(block_text) < 100 and block_text and block_text[0].isupper() and "\n" not in block_text:
-                        sections.append({
-                            "section_id": f"sec_{len(sections)+1}",
-                            "title": block_text,
-                            "level": 1,
-                            "page_number": page_num + 1,
-                            "content": ""
-                        })
                 
+                # Classify blocks into potential headings vs body text
+                heading_indices = []
+                block_texts = []
+                for b_idx, block in enumerate(blocks):
+                    # blocks: (x0, y0, x1, y1, text, block_no, block_type)
+                    if block[-1] != 0:  # skip image blocks
+                        continue
+                    block_text = block[4].strip()
+                    if not block_text:
+                        continue
+                    block_texts.append(block_text)
+                    
+                    # Heuristic for headings: short text, starts with uppercase,
+                    # no line breaks, and not a bullet point
+                    is_short = len(block_text) < 100
+                    is_upper_start = block_text and block_text[0].isupper()
+                    is_single_line = "\n" not in block_text
+                    is_not_bullet = not block_text.startswith("•") and not block_text.startswith("-")
+                    
+                    if is_short and is_upper_start and is_single_line and is_not_bullet:
+                        heading_indices.append(len(block_texts) - 1)
+
+                # Now assign content to each heading by collecting text between headings
+                for h_pos, h_idx in enumerate(heading_indices):
+                    heading_text = block_texts[h_idx]
+                    
+                    # Content = all block_texts after this heading until the next heading
+                    next_h_idx = heading_indices[h_pos + 1] if h_pos + 1 < len(heading_indices) else len(block_texts)
+                    content_parts = []
+                    for c_idx in range(h_idx + 1, next_h_idx):
+                        content_parts.append(block_texts[c_idx])
+                    
+                    section_content = "\n".join(content_parts).strip()
+                    
+                    sections.append({
+                        "section_id": f"sec_{len(sections)+1}",
+                        "title": heading_text,
+                        "level": 1,
+                        "page_number": page_num + 1,
+                        "content": section_content
+                    })
+
                 # Check if OCR fallback is required for scanned page
                 used_ocr = False
                 if enable_ocr and len(page_text.strip()) < 50 and HAS_OCR:
@@ -131,7 +177,8 @@ class ExtractionService:
             "total_pages": len(pages_content),
             "pages": pages_content,
             "sections": sections,
-            "tables": tables
+            "tables": tables,
+            "pdf_metadata": pdf_metadata
         }
 
     @classmethod

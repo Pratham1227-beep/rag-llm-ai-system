@@ -26,13 +26,16 @@ app.include_router(health_router)
 app.include_router(documents_router)
 app.include_router(query_router)
 
-@app.get("/")
+from fastapi.responses import HTMLResponse
+from pathlib import Path
+
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {
-        "message": f"Welcome to {settings.APP_NAME}",
-        "docs": "/docs",
-        "health": "/health"
-    }
+    static_file = Path(__file__).parent / "static" / "index.html"
+    if static_file.exists():
+        return HTMLResponse(content=static_file.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Enterprise RAG System Running</h1><p><a href='/docs'>Swagger API Docs</a></p>")
+
 
 if __name__ == "__main__":
     import uvicorn
