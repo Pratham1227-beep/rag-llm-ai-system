@@ -1,5 +1,3 @@
-<![CDATA[<div align="center">
-
 # 🧠 Enterprise RAG + LLM AI System
 
 **A Modular, Production-Ready Retrieval-Augmented Generation Pipeline**
@@ -448,9 +446,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-<div align="center">
 
 **Built by [Pratham Khatri](https://github.com/prathamkhatri)** · AI & ML Engineer
 
-</div>
-]]>
+
