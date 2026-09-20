@@ -2,7 +2,7 @@ import logging
 import httpx
 from typing import List, Dict, Any, Tuple
 from app.config import settings
-from app.models.schemas import SourceCitation
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,23 +31,12 @@ class OllamaClient:
         query: str,
         retrieved_chunks: List[Dict[str, Any]],
         model_override: str = None
-    ) -> Tuple[str, List[SourceCitation]]:
+    ) -> str:
         model = model_override or settings.OLLAMA_MODEL
-        citations = []
 
-        # Construct Citations from retrieved chunks
+        # Construct Context from retrieved chunks
         context_str_parts = []
         for idx, chunk in enumerate(retrieved_chunks, 1):
-            citation = SourceCitation(
-                document_id=chunk["document_id"],
-                filename=chunk["filename"],
-                page_number=chunk["page_number"],
-                section_title=chunk.get("section_title"),
-                snippet=chunk["snippet"][:200] + "..." if len(chunk["snippet"]) > 200 else chunk["snippet"],
-                relevance_score=chunk["relevance_score"]
-            )
-            citations.append(citation)
-
             context_str_parts.append(
                 f"--- [Source {idx}]: {chunk['filename']} (Page {chunk['page_number']}, Section: '{chunk.get('section_title', 'General')}') ---\n"
                 f"{chunk['snippet']}"
@@ -55,11 +44,13 @@ class OllamaClient:
 
         context_text = "\n\n".join(context_str_parts)
 
-        # System Prompt construction enforcing grounding
+        # System Prompt construction allowing RAG context priority + general knowledge fallback
         system_prompt = (
-            "You are an enterprise AI document assistant. Answer the user's question based strictly on the provided context.\n"
-            "If the context does not contain enough information to answer, state clearly that the document does not mention it.\n"
-            "Include inline references to the sources (e.g. [Source 1, Page 2]) when asserting facts.\n\n"
+            "You are an AI document assistant. Answer the user's question accurately.\n"
+            "Use the provided context if it contains relevant information for the question.\n"
+            "If the question is out of context or not mentioned in the documents, answer it directly using your general knowledge.\n"
+            "Do NOT mention any source names, document titles, or page numbers in your response.\n"
+            "CRITICAL: Answer ONLY the specific question asked. Do NOT include any conversational preamble, filler, or extra introductory phrases.\n\n"
             f"Context:\n{context_text}"
         )
 
@@ -81,7 +72,7 @@ class OllamaClient:
                 res = client.post(url, json=payload)
                 if res.status_code == 200:
                     answer = res.json().get("response", "").strip()
-                    return answer, citations
+                    return answer
                 else:
                     logger.warning(f"Ollama returned HTTP {res.status_code}. Using fallback summary generator.")
         except Exception as e:
@@ -90,11 +81,11 @@ class OllamaClient:
         # Fallback response generator if Ollama is not active locally
         if retrieved_chunks:
             fallback_answer = (
-                f"Based on the retrieved context from '{retrieved_chunks[0]['filename']}':\n\n"
+                f"Based on the retrieved context:\n\n"
                 f"{retrieved_chunks[0]['snippet']}\n\n"
                 f"*(Note: Generated directly from context as Ollama LLM endpoint at {settings.OLLAMA_BASE_URL} is currently offline)*"
             )
         else:
-            fallback_answer = "No relevant context found in documents to answer your query."
+            fallback_answer = "The document does not mention this information."
 
-        return fallback_answer, citations
+        return fallback_answer

@@ -13,7 +13,15 @@ class EmbeddingService:
             try:
                 from sentence_transformers import SentenceTransformer
                 logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL_NAME}")
-                cls._model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME)
+                try:
+                    cls._model = SentenceTransformer(
+                        settings.EMBEDDING_MODEL_NAME,
+                        device="cpu",
+                        model_kwargs={"low_cpu_mem_usage": False}
+                    )
+                except Exception as inner_e:
+                    logger.warning(f"First load attempt failed ({inner_e}), trying standard cpu load...")
+                    cls._model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME, device="cpu")
             except Exception as e:
                 logger.error(f"Failed to load SentenceTransformer model ({e}). Using CPU fallback/mock mode if needed.")
                 cls._model = None

@@ -66,4 +66,3 @@ def test_upload_and_process_flow():
     query_data = query_resp.json()
     assert "query" in query_data
     assert "answer" in query_data
-    assert "citations" in query_data

@@ -25,3 +25,6 @@ dependencies = [
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 pythonpath = ["."]
+
+[tool.setuptools]
+packages = ["app"]

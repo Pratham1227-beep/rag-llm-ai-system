@@ -596,37 +596,21 @@
                 const data = await res.json();
 
                 removeMessage(loadingId);
-                addMessage("assistant", data.answer, data.citations, data.groundedness_score);
+                addMessage("assistant", data.answer);
             } catch (err) {
                 removeMessage(loadingId);
                 addMessage("assistant", `Error executing query: ${err.message}`);
             }
         });
 
-        function addMessage(role, text, citations = [], groundedness = null) {
+        function addMessage(role, text) {
             const div = document.createElement("div");
             div.className = `message ${role}`;
             
-            let citationsHTML = "";
-            if (citations && citations.length > 0) {
-                citationsHTML = `
-                    <div class="citations-section">
-                        <div class="citations-header">Source Citations (${groundedness !== null ? 'Groundedness: ' + (groundedness * 100) + '%' : ''})</div>
-                        ${citations.map(c => `
-                            <div class="citation-card">
-                                <div class="citation-meta">${c.filename} | Page ${c.page_number} | Section: ${c.section_title || 'General'}</div>
-                                <div class="citation-snippet">"${c.snippet}"</div>
-                            </div>
-                        `).join("")}
-                    </div>
-                `;
-            }
-
             div.innerHTML = `
                 <div class="avatar">${role === 'user' ? 'You' : 'AI'}</div>
                 <div class="message-content">
                     <div>${text.replace(/\n/g, '<br>')}</div>
-                    ${citationsHTML}
                 </div>
             `;
 
@@ -643,7 +627,7 @@
             div.innerHTML = `
                 <div class="avatar">AI</div>
                 <div class="message-content">
-                    <div class="spinner"></div> Searching vector index and querying LLM...
+                    <div class="spinner"></div> thinking....
                 </div>
             `;
             chatMessages.appendChild(div);

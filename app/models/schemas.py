@@ -14,8 +14,8 @@ class DocumentUploadResponse(BaseModel):
 # Processing Schemas
 class DocumentProcessRequest(BaseModel):
     document_id: str
-    chunk_size: int = Field(500, description="Target chunk character length")
-    chunk_overlap: int = Field(50, description="Target chunk overlap length")
+    chunk_size: int = Field(100, description="Target chunk character length")
+    chunk_overlap: int = Field(30, description="Target chunk overlap length")
     enable_ocr: bool = Field(True, description="Enable OCR fallback for scanned pages")
 
 
@@ -40,19 +40,10 @@ class DocumentInfo(BaseModel):
     indexed_chunks: Optional[int] = None
 
 
-# Retrieval & Citation Schemas
-class SourceCitation(BaseModel):
-    document_id: str
-    filename: str
-    page_number: int
-    section_title: Optional[str] = None
-    snippet: str
-    relevance_score: float
-
-
+# Retrieval Schemas
 class QueryRequest(BaseModel):
     query: str = Field(..., description="User query / question")
-    top_k: int = Field(4, ge=1, le=20, description="Number of context chunks to retrieve")
+    top_k: int = Field(15, ge=1, le=50, description="Number of context chunks to retrieve")
     document_ids: Optional[List[str]] = Field(None, description="Filter search to specific document IDs")
     model: Optional[str] = Field(None, description="Override LLM model name")
     stream: bool = Field(False, description="Stream LLM response")
@@ -61,11 +52,9 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     query: str
     answer: str
-    citations: List[SourceCitation]
     llm_model: str
     retrieval_count: int
     processing_time_seconds: float
-    groundedness_score: Optional[float] = Field(None, description="Evaluation score of answer grounding")
 
 
 # Health Check Schema

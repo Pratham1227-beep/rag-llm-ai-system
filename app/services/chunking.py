@@ -8,8 +8,8 @@ class DocumentChunker:
     def chunk_okf_document(
         cls,
         okf_doc: OKFDocument,
-        chunk_size: int = 500,
-        chunk_overlap: int = 50
+        chunk_size: int = 100,
+        chunk_overlap: int = 30
     ) -> List[Dict[str, Any]]:
         chunks = []
         doc_id = okf_doc.metadata.document_id
