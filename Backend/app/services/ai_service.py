@@ -17,16 +17,15 @@ def get_available_chat_model(client, preferred=None):
             return preferred
             
         priority = [
-            'llama-3.3-70b-versatile',
-            'llama-3.1-70b-versatile',
             'llama-3.1-8b-instant',
-            'llama-3.2-11b-vision-preview',
+            'llama-3.1-70b-versatile',
+            'llama-3.3-70b-versatile',
             'llama-3.2-3b-preview',
             'llama-3.2-1b-preview',
+            'gemma2-9b-it',
+            'mixtral-8x7b-32768',
             'qwen-qwq-32b',
             'deepseek-r1-distill-llama-70b',
-            'mixtral-8x7b-32768',
-            'gemma2-9b-it'
         ]
         for p in priority:
             if p in available_ids:
