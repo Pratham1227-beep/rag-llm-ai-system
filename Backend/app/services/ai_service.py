@@ -45,12 +45,20 @@ def get_available_chat_model(client, preferred=None):
 def generate_ai_response(messages, uploaded_materials=None):
     client = get_groq_client()
     
-    system_content = "You are a helpful Enterprise RAG AI Assistant. Respond concisely and helpfully using Markdown formatting when appropriate."
+    system_content = (
+        "You are an intelligent, high-precision Enterprise RAG AI Assistant.\n"
+        "Your goal is to provide clear, structured, and insightful answers.\n\n"
+        "Formatting Guidelines:\n"
+        "- Use Markdown formatting effectively: headers (##, ###), bullet points, bold key terms, and clean tables when comparing data.\n"
+        "- When providing multi-attribute comparisons, present them in clean Markdown tables.\n"
+        "- When citing or quoting uploaded documents, clearly mention the source document name.\n"
+        "- Keep explanations direct, professional, and well-organized with clear section headings."
+    )
     
     if uploaded_materials:
-        system_content += "\n\nYou have access to these uploaded materials:\n"
+        system_content += "\n\n=== CONTEXT FROM UPLOADED DOCUMENTS ===\n"
         for material in uploaded_materials:
-            system_content += f"\n--- {material['name']} ---\n{material['content'][:3000]}\n"
+            system_content += f"\n--- Document: {material['name']} ---\n{material['content'][:4000]}\n"
     
     api_messages = [{"role": "system", "content": system_content}]
     api_messages.extend(messages)
