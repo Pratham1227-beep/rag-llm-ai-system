@@ -13,12 +13,4 @@ def create_app(config_class=DevelopmentConfig):
     from app.routes.api import api_bp
     app.register_blueprint(api_bp)
     
-    @app.route('/')
-    def root():
-        return {
-            "status": "online",
-            "message": "Enterprise RAG AI System Backend is running.",
-            "health_check": "/api/health"
-        }
-    
     return app
