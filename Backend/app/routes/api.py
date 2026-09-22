@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
+from flask_jwt_extended import jwt_required
 from app.services import ai_service, file_service
 
 # Define Blueprint
@@ -14,17 +15,18 @@ def health_check():
     })
 
 @api_bp.route('/chat', methods=['POST'])
+@jwt_required()
 def chat():
     try:
         data = request.get_json()
         if not data or 'messages' not in data:
             return jsonify({"error": "Missing 'messages'"}), 400
-            
+
         response = ai_service.generate_ai_response(
-            data['messages'], 
+            data['messages'],
             data.get('uploaded_materials', [])
         )
-        
+
         return jsonify({
             "response": response,
             "timestamp": datetime.now().isoformat()
@@ -33,14 +35,15 @@ def chat():
         return jsonify({"error": str(e)}), 500
 
 @api_bp.route('/upload', methods=['POST'])
+@jwt_required()
 def upload_file():
     try:
         if 'files' not in request.files:
             return jsonify({"error": "No files provided"}), 400
-        
+
         files = request.files.getlist('files')
         processed_files = []
-        
+
         for file in files:
             if file.filename == '': continue
             try:
@@ -48,7 +51,7 @@ def upload_file():
                 processed_files.append(result)
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
-                
+
         return jsonify({
             "files": processed_files,
             "count": len(processed_files),

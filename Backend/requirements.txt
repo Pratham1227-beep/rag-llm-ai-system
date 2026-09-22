@@ -5,3 +5,6 @@ groq>=0.5.0
 httpx<0.28.0
 PyPDF2==3.0.1
 gunicorn
+flask-sqlalchemy==3.1.1
+flask-bcrypt==1.0.1
+flask-jwt-extended==4.6.0
