@@ -57,7 +57,7 @@ def generate_ai_response(messages, uploaded_materials=None):
     retrieved_chunks = []
     if user_query:
         try:
-            retrieved_chunks = vector_service.search_relevant_chunks(user_query, top_k=6)
+            retrieved_chunks = vector_service.search_relevant_chunks(user_query, top_k=10)
         except Exception as e:
             current_app.logger.warning(f"Vector search warning: {e}")
 
