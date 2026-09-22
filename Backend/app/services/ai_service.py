@@ -19,7 +19,6 @@ def get_available_chat_model(client, preferred=None):
         priority = [
             'llama-3.1-8b-instant',
             'llama-3.1-70b-versatile',
-            'llama-3.3-70b-versatile',
             'llama-3.2-3b-preview',
             'llama-3.2-1b-preview',
             'gemma2-9b-it',
@@ -39,7 +38,8 @@ def get_available_chat_model(client, preferred=None):
             return available_ids[0]
     except Exception:
         pass
-    return preferred or 'llama-3.3-70b-versatile'
+    # Fall back to the configured preferred model, then a safe known default
+    return preferred or 'llama-3.1-8b-instant'
 
 def generate_ai_response(messages, uploaded_materials=None):
     client = get_groq_client()
