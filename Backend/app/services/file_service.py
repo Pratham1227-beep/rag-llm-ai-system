@@ -84,11 +84,34 @@ def extract_pages_from_pdf(pdf_bytes):
 
     return pages_data, total_pages
 
-def chunk_document(filename, pages_data, chunk_size=500, chunk_overlap=100):
+def get_adaptive_chunk_params(total_pages):
     """
-    Granular chunking across the entire document without limits.
-    Creates as many chunks as needed to capture every paragraph, section, and page.
+    Dynamically selects chunk_size and overlap based on document length.
+    Balances retrieval accuracy (small chunks) with indexing speed (large chunks).
+
+    Strategy:
+      - Small docs  (1–10 pages)  : 500 chars / 100 overlap  → fine-grained, highest precision
+      - Medium docs (11–25 pages) : 800 chars / 130 overlap  → balanced accuracy & speed
+      - Large docs  (26–60 pages) : 1200 chars / 180 overlap → speed-optimized, still accurate
+      - XL docs     (61+ pages)   : 1600 chars / 240 overlap → maximum throughput, broad coverage
     """
+    if total_pages <= 10:
+        return 500, 100
+    elif total_pages <= 25:
+        return 800, 130
+    elif total_pages <= 60:
+        return 1200, 180
+    else:
+        return 1600, 240
+
+def chunk_document(filename, pages_data, total_pages):
+    """
+    Adaptive chunking across the entire document without any page or content limits.
+    Chunk size is automatically chosen based on document length for the optimal
+    balance of retrieval accuracy and indexing speed.
+    Every page is always fully covered — no content is ever skipped.
+    """
+    chunk_size, chunk_overlap = get_adaptive_chunk_params(total_pages)
     chunks = []
     chunk_index = 0
     
@@ -123,12 +146,14 @@ def chunk_document(filename, pages_data, chunk_size=500, chunk_overlap=100):
                 break
             start += max(1, chunk_size - chunk_overlap)
             
-    return chunks
+    return chunks, chunk_size
 
 def process_uploaded_file(file):
     """
-    Reads the complete PDF without limits, splits into as many granular chunks
-    as possible, and indexes every chunk into ChromaDB Vector Database.
+    Reads the COMPLETE PDF across every page without limits.
+    Uses adaptive chunk sizing so every document gets the best
+    balance of retrieval accuracy and indexing speed.
+    All content from all pages is always covered.
     """
     filename = file.filename
     file_bytes = file.read()
@@ -144,10 +169,10 @@ def process_uploaded_file(file):
     else:
         raise ValueError(f"Unsupported file type: {filename}")
         
-    # 1. Granular chunking: creates maximum chunks for dense vector search
-    chunks = chunk_document(filename, pages_data, chunk_size=500, chunk_overlap=100)
+    # 1. Adaptive chunking — chunk size auto-scales with document size
+    chunks, chunk_size_used = chunk_document(filename, pages_data, total_pages)
     
-    # 2. Ingest into ChromaDB Vector Database
+    # 2. Ingest into ChromaDB Vector Database (batched upsert)
     db_result = vector_service.add_chunks_to_vector_db(chunks)
     
     total_in_db = db_result.get("total_chunks_in_db", 0)
@@ -159,6 +184,7 @@ def process_uploaded_file(file):
         "type": file.content_type,
         "total_pages": total_pages,
         "chunks_created": len(chunks),
+        "chunk_size_used": chunk_size_used,
         "vector_db_status": "indexed",
         "total_chunks_in_db": total_in_db
     }
