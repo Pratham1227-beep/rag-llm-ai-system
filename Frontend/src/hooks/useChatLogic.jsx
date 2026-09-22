@@ -10,6 +10,9 @@ export const useChatLogic = () => {
   const [backendStatus, setBackendStatus] = useState('checking');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadElapsedSeconds, setUploadElapsedSeconds] = useState('0.0');
+  const [uploadNotification, setUploadNotification] = useState(null);
 
   // Initialize
   useEffect(() => {
@@ -89,9 +92,24 @@ export const useChatLogic = () => {
   };
 
   const handleFileUpload = async (files) => {
+    if (!files || files.length === 0) return;
     setError(null);
+    setIsUploading(true);
+    setUploadElapsedSeconds('0.0');
+    setUploadNotification(null);
+
+    const startTime = performance.now();
+    const timerInterval = setInterval(() => {
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+      setUploadElapsedSeconds(elapsed);
+    }, 100);
+
     try {
       const response = await chatAPI.uploadFiles(files);
+      const totalTimeSec = ((performance.now() - startTime) / 1000).toFixed(1);
+      clearInterval(timerInterval);
+      setUploadElapsedSeconds(totalTimeSec);
+
       const newFiles = response.files.map((file, index) => ({
         id: Date.now() + index,
         name: file.name,
@@ -99,14 +117,30 @@ export const useChatLogic = () => {
         type: file.type,
         chunksCreated: file.chunks_created || 0,
         totalPages: file.total_pages || 1,
-        vectorDbStatus: file.vector_db_status || 'indexed'
+        vectorDbStatus: file.vector_db_status || 'indexed',
+        uploadTime: `${totalTimeSec}s`
       }));
       
       const updatedFiles = [...uploadedFiles, ...newFiles];
       setUploadedFiles(updatedFiles);
       updateCurrentChat(messages, updatedFiles);
+
+      // Show temporary success notification with loading time
+      const totalChunks = newFiles.reduce((acc, f) => acc + (f.chunksCreated || 0), 0);
+      const filenames = newFiles.map(f => f.name).join(', ');
+      setUploadNotification({
+        message: `Indexed "${filenames}" in ${totalTimeSec}s (${totalChunks} chunks)`,
+        time: `${totalTimeSec}s`,
+        chunks: totalChunks
+      });
+      setTimeout(() => setUploadNotification(null), 7000);
+
     } catch (err) {
+      clearInterval(timerInterval);
       setError(`Upload failed: ${err.message}`);
+    } finally {
+      clearInterval(timerInterval);
+      setIsUploading(false);
     }
   };
 
@@ -163,7 +197,6 @@ export const useChatLogic = () => {
     } catch (err) {
       setIsTyping(false);
       setError(err.message);
-      // Optional: Add error message to chat stream logic here
     }
   };
 
@@ -176,8 +209,10 @@ export const useChatLogic = () => {
   return {
     // State
     chats, currentChatId, messages, uploadedFiles, backendStatus, isTyping, error,
+    isUploading, uploadElapsedSeconds, uploadNotification,
     // Actions
     createNewChat, selectChat, deleteChat, sendMessage, 
-    handleFileUpload, removeFile, clearCurrentChat, checkBackendHealth, setError
+    handleFileUpload, removeFile, clearCurrentChat, checkBackendHealth, setError,
+    setUploadNotification
   };
 };

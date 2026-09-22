@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState } from 'react';
-import { Menu, MoreVertical, Trash2, AlertCircle, X, Paperclip } from 'lucide-react';
+import { Menu, MoreVertical, Trash2, AlertCircle, X, Paperclip, CheckCircle, Clock } from 'lucide-react';
 import Sidebar from './components/Layout/Sidebar';
 import MessageList from './components/Chat/MessageList';
 import ChatInput from './components/Chat/ChatInput';
@@ -9,7 +9,6 @@ import { useChatLogic } from './hooks/useChatLogic';
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Destructure all logic from our custom hook
   const {
     chats,
     currentChatId,
@@ -18,6 +17,9 @@ function App() {
     backendStatus,
     isTyping,
     error,
+    isUploading,
+    uploadElapsedSeconds,
+    uploadNotification,
     createNewChat,
     selectChat,
     deleteChat,
@@ -26,7 +28,8 @@ function App() {
     removeFile,
     clearCurrentChat,
     checkBackendHealth,
-    setError
+    setError,
+    setUploadNotification
   } = useChatLogic();
 
   return (
@@ -73,6 +76,39 @@ function App() {
           </div>
         </div>
 
+        {/* Upload Loading Banner */}
+        {isUploading && (
+          <div className="bg-blue-50 border-b border-blue-100 px-4 py-2.5 flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-blue-800">
+                Processing & indexing document into Vector DB...
+              </span>
+              <span className="text-blue-600 text-xs ml-2">Please wait while chunks are created.</span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200">
+              <Clock size={12} className="text-blue-600" />
+              <span className="text-blue-700 text-xs font-mono font-bold">{uploadElapsedSeconds}s</span>
+            </div>
+          </div>
+        )}
+
+        {/* Upload Success Notification */}
+        {!isUploading && uploadNotification && (
+          <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-emerald-800">
+              <CheckCircle size={15} className="text-emerald-600 shrink-0" />
+              <span className="font-medium">{uploadNotification.message}</span>
+            </div>
+            <button
+              onClick={() => setUploadNotification(null)}
+              className="text-emerald-500 hover:text-emerald-700 ml-3 shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Error Banner */}
         {error && (
           <div className="bg-red-50 px-4 py-2 flex items-center justify-between border-b border-red-100">
@@ -103,6 +139,12 @@ function App() {
                       {file.chunksCreated} chunks ({file.totalPages}p)
                     </span>
                   ) : null}
+                  {file.uploadTime && (
+                    <span className="ml-1.5 flex items-center gap-0.5 text-[10px] text-gray-400">
+                      <Clock size={9} />
+                      {file.uploadTime}
+                    </span>
+                  )}
                   <button onClick={() => removeFile(file.id)} className="ml-2 text-gray-400 hover:text-red-500">
                     <X size={12} />
                   </button>
@@ -120,6 +162,8 @@ function App() {
           onSend={sendMessage}
           onUpload={handleFileUpload}
           disabled={backendStatus === 'offline'}
+          isUploading={isUploading}
+          uploadElapsedSeconds={uploadElapsedSeconds}
         />
       </div>
     </div>

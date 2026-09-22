@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Paperclip, Plus, X } from 'lucide-react';
 
-const ChatInput = ({ onSend, onUpload, disabled }) => {
+const ChatInput = ({ onSend, onUpload, disabled, isUploading, uploadElapsedSeconds }) => {
   const [text, setText] = useState('');
   const [showUpload, setShowUpload] = useState(false);
 
@@ -35,9 +35,19 @@ const ChatInput = ({ onSend, onUpload, disabled }) => {
         <div className="relative pb-1">
           <button
             onClick={() => setShowUpload(!showUpload)}
-            className="text-gray-500 hover:text-emerald-600 p-2 rounded-full hover:bg-gray-100 transition"
+            disabled={isUploading}
+            className={`p-2 rounded-full transition flex items-center justify-center ${
+              isUploading 
+                ? 'text-emerald-600 bg-emerald-50 cursor-wait' 
+                : 'text-gray-500 hover:text-emerald-600 hover:bg-gray-100'
+            }`}
+            title={isUploading ? `Indexing PDF into Vector DB: ${uploadElapsedSeconds}s` : 'Attach PDF/TXT document'}
           >
-            <Paperclip size={22} />
+            {isUploading ? (
+              <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Paperclip size={22} />
+            )}
           </button>
           
           {showUpload && (

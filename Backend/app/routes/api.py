@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
+import time
 from app.services import ai_service, file_service, vector_service
 
 # Define Blueprint
@@ -41,6 +42,7 @@ def chat():
 
 @api_bp.route('/upload', methods=['POST'])
 def upload_file():
+    start_time = time.time()
     try:
         if 'files' not in request.files:
             return jsonify({"error": "No files provided"}), 400
@@ -57,11 +59,13 @@ def upload_file():
                 return jsonify({"error": str(e)}), 400
 
         db_stats = vector_service.get_vector_db_stats()
+        duration = round(time.time() - start_time, 2)
 
         return jsonify({
             "files": processed_files,
             "count": len(processed_files),
             "vector_db": db_stats,
+            "processing_time_seconds": duration,
             "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
