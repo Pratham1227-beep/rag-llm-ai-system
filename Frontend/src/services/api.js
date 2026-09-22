@@ -38,10 +38,12 @@ export const chatAPI = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 120000, // 2-minute timeout for multi-page PDF vectorization
       });
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Failed to upload files');
+      const msg = error.response?.data?.error || error.message || 'Failed to upload files';
+      throw new Error(msg);
     }
   },
 

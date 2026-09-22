@@ -29,18 +29,21 @@ def add_chunks_to_vector_db(chunks):
       - 'text': text content of the chunk
       - 'metadata': dict with 'source', 'page', 'chunk_index'
     """
-    if not chunks:
-        return {"chunks_added": 0, "total_chunks": 0}
-
     collection = get_collection()
     
+    if not chunks:
+        return {
+            "chunks_added": 0,
+            "total_chunks_in_db": collection.count()
+        }
+
     ids = []
     documents = []
     metadatas = []
 
     for chunk in chunks:
-        ids.append(chunk['id'])
-        documents.append(chunk['text'])
+        ids.append(str(chunk['id']))
+        documents.append(str(chunk['text']))
         # ChromaDB metadata values must be primitive types (str, int, float, bool)
         meta = {
             "source": str(chunk.get('metadata', {}).get('source', 'Unknown')),
@@ -49,12 +52,14 @@ def add_chunks_to_vector_db(chunks):
         }
         metadatas.append(meta)
 
-    # Ingest into vector store
-    collection.add(
-        ids=ids,
-        documents=documents,
-        metadatas=metadatas
-    )
+    # Ingest using upsert in safe batches to prevent duplicates or size limits
+    batch_size = 40
+    for i in range(0, len(ids), batch_size):
+        collection.upsert(
+            ids=ids[i:i + batch_size],
+            documents=documents[i:i + batch_size],
+            metadatas=metadatas[i:i + batch_size]
+        )
 
     return {
         "chunks_added": len(chunks),
@@ -112,11 +117,14 @@ def get_vector_db_stats():
     unique_sources = set()
     if total > 0:
         # Fetch metadata to determine unique document sources
-        sample = collection.get(limit=total, include=["metadatas"])
-        if sample and "metadatas" in sample:
-            for meta in sample["metadatas"]:
-                if meta and "source" in meta:
-                    unique_sources.add(meta["source"])
+        try:
+            sample = collection.get(limit=min(total, 5000), include=["metadatas"])
+            if sample and "metadatas" in sample:
+                for meta in sample["metadatas"]:
+                    if meta and "source" in meta:
+                        unique_sources.add(meta["source"])
+        except Exception:
+            pass
 
     return {
         "status": "ready",
