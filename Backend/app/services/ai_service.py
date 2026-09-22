@@ -17,6 +17,7 @@ def get_available_chat_model(client, preferred=None):
             return preferred
             
         priority = [
+            'llama-3.3-70b-versatile',
             'llama-3.1-8b-instant',
             'llama-3.1-70b-versatile',
             'llama-3.2-3b-preview',
@@ -47,20 +48,25 @@ def generate_ai_response(messages, uploaded_materials=None):
     system_content = (
         "You are an intelligent, high-precision Enterprise RAG AI Assistant.\n"
         "Your goal is to provide clear, structured, and insightful answers.\n\n"
+        "Document Processing & Analysis Rules:\n"
+        "- Thoroughly read and analyze the ENTIRE content of all uploaded documents from beginning to end across all pages.\n"
+        "- Do NOT limit your understanding or answers to only the first few pages. Search the complete text.\n"
+        "- When citing or answering questions based on the uploaded materials, cite the document name and page number (e.g., [Page X]) whenever available.\n\n"
         "Language & Tone Rules:\n"
         "- ALWAYS communicate and answer in English unless the user explicitly asks you to speak in another language.\n"
         "- Maintain a professional, articulate, and helpful enterprise tone.\n\n"
         "Formatting Guidelines:\n"
         "- Use Markdown formatting effectively: headers (##, ###), bullet points, bold key terms, and clean tables when comparing data.\n"
         "- When providing multi-attribute comparisons, present them in clean Markdown tables.\n"
-        "- When citing or quoting uploaded documents, clearly mention the source document name.\n"
         "- Keep explanations direct, professional, and well-organized with clear section headings."
     )
     
     if uploaded_materials:
         system_content += "\n\n=== CONTEXT FROM UPLOADED DOCUMENTS ===\n"
         for material in uploaded_materials:
-            system_content += f"\n--- Document: {material['name']} ---\n{material['content'][:4000]}\n"
+            doc_name = material.get('name', 'Uploaded Document')
+            doc_content = material.get('content', '')
+            system_content += f"\n--- Document: {doc_name} ---\n{doc_content}\n"
     
     api_messages = [{"role": "system", "content": system_content}]
     api_messages.extend(messages)
@@ -72,7 +78,7 @@ def generate_ai_response(messages, uploaded_materials=None):
         response = client.chat.completions.create(
             model=selected_model,
             messages=api_messages,
-            max_tokens=1000,
+            max_tokens=4096,
             temperature=0.7,
         )
         return response.choices[0].message.content
@@ -93,7 +99,7 @@ def generate_ai_response(messages, uploaded_materials=None):
                     response = client.chat.completions.create(
                         model=model,
                         messages=api_messages,
-                        max_tokens=1000,
+                        max_tokens=4096,
                         temperature=0.7,
                     )
                     return response.choices[0].message.content

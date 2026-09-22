@@ -20,7 +20,11 @@ export const useChatLogic = () => {
   // Sync with LocalStorage
   useEffect(() => {
     if (chats.length > 0) {
-      localStorage.setItem('study_mentor_chats', JSON.stringify(chats));
+      try {
+        localStorage.setItem('study_mentor_chats', JSON.stringify(chats));
+      } catch (err) {
+        console.warn('Could not persist all chat data to localStorage (size limit exceeded):', err);
+      }
     }
   }, [chats]);
 
