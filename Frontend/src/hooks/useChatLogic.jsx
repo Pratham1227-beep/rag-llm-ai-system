@@ -97,6 +97,9 @@ export const useChatLogic = () => {
         name: file.name,
         content: file.content,
         type: file.type,
+        chunksCreated: file.chunks_created || 0,
+        totalPages: file.total_pages || 1,
+        vectorDbStatus: file.vector_db_status || 'indexed'
       }));
       
       const updatedFiles = [...uploadedFiles, ...newFiles];

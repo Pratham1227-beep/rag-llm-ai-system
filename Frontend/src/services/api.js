@@ -63,6 +63,26 @@ export const chatAPI = {
     } catch (error) {
       throw new Error(error.response?.data?.error || 'API test failed');
     }
+  },
+
+  // Vector DB stats
+  getVectorDbStats: async () => {
+    try {
+      const response = await api.get('/api/vector-db/stats');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to fetch vector DB stats');
+    }
+  },
+
+  // Clear Vector DB
+  clearVectorDb: async () => {
+    try {
+      const response = await api.post('/api/vector-db/clear');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to clear vector DB');
+    }
   }
 };
 

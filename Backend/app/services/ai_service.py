@@ -1,5 +1,6 @@
 import groq
 from flask import current_app
+from app.services import vector_service
 
 def get_groq_client():
     api_key = current_app.config.get('GROQ_API_KEY')
@@ -45,24 +46,49 @@ def get_available_chat_model(client, preferred=None):
 def generate_ai_response(messages, uploaded_materials=None):
     client = get_groq_client()
     
+    # 1. Extract the latest user query for Vector DB similarity retrieval
+    user_query = ""
+    for m in reversed(messages):
+        if m.get('role') == 'user':
+            user_query = m.get('content', '')
+            break
+
+    # 2. Retrieve top semantic chunks from ChromaDB Vector Database
+    retrieved_chunks = []
+    if user_query:
+        try:
+            retrieved_chunks = vector_service.search_relevant_chunks(user_query, top_k=6)
+        except Exception as e:
+            current_app.logger.warning(f"Vector search warning: {e}")
+
+    # 3. Build enterprise RAG system prompt
     system_content = (
-        "You are an intelligent, high-precision Enterprise RAG AI Assistant.\n"
-        "Your goal is to provide clear, structured, and insightful answers.\n\n"
-        "Document Processing & Analysis Rules:\n"
-        "- Thoroughly read and analyze the ENTIRE content of all uploaded documents from beginning to end across all pages.\n"
-        "- Do NOT limit your understanding or answers to only the first few pages. Search the complete text.\n"
-        "- When citing or answering questions based on the uploaded materials, cite the document name and page number (e.g., [Page X]) whenever available.\n\n"
+        "You are an intelligent, high-precision Enterprise RAG AI Assistant powered by a persistent Vector Database (ChromaDB).\n"
+        "Your primary goal is to answer questions accurately and insightfully based on the retrieved document chunks and uploaded context.\n\n"
+        "RAG Retrieval & Citation Rules:\n"
+        "- Base your answers on the relevant document chunks retrieved from the Vector Database and any provided document context.\n"
+        "- When quoting or using information from the documents, ALWAYS cite the source document name and page number (e.g., [Document: filename.pdf, Page X]).\n"
+        "- If the retrieved chunks or documents do not contain enough information to answer completely, state clearly what is found and what is missing.\n\n"
         "Language & Tone Rules:\n"
-        "- ALWAYS communicate and answer in English unless the user explicitly asks you to speak in another language.\n"
+        "- ALWAYS communicate and answer in English unless the user explicitly asks for another language.\n"
         "- Maintain a professional, articulate, and helpful enterprise tone.\n\n"
         "Formatting Guidelines:\n"
         "- Use Markdown formatting effectively: headers (##, ###), bullet points, bold key terms, and clean tables when comparing data.\n"
-        "- When providing multi-attribute comparisons, present them in clean Markdown tables.\n"
         "- Keep explanations direct, professional, and well-organized with clear section headings."
     )
     
+    # Inject Vector DB Retrieved Chunks
+    if retrieved_chunks:
+        system_content += "\n\n=== RELEVANT CONTEXT RETRIEVED FROM VECTOR DATABASE (CHROMADB CHUNKS) ===\n"
+        for i, chunk in enumerate(retrieved_chunks, 1):
+            system_content += (
+                f"\n[Vector Chunk {i} | Source: {chunk['source']} | Page: {chunk['page']} | Match Score: {chunk['similarity_score']}]\n"
+                f"{chunk['text']}\n"
+            )
+
+    # Inject full active session materials if provided
     if uploaded_materials:
-        system_content += "\n\n=== CONTEXT FROM UPLOADED DOCUMENTS ===\n"
+        system_content += "\n\n=== UPLOADED DOCUMENT REFERENCE CONTEXT ===\n"
         for material in uploaded_materials:
             doc_name = material.get('name', 'Uploaded Document')
             doc_content = material.get('content', '')
@@ -81,7 +107,18 @@ def generate_ai_response(messages, uploaded_materials=None):
             max_tokens=4096,
             temperature=0.7,
         )
-        return response.choices[0].message.content
+        return {
+            "content": response.choices[0].message.content,
+            "retrieved_chunks_count": len(retrieved_chunks),
+            "sources": [
+                {
+                    "source": c["source"],
+                    "page": c["page"],
+                    "similarity": c["similarity_score"]
+                }
+                for c in retrieved_chunks
+            ]
+        }
     except Exception as primary_error:
         # If primary fails, query live models and try each active chat model
         try:
@@ -102,7 +139,18 @@ def generate_ai_response(messages, uploaded_materials=None):
                         max_tokens=4096,
                         temperature=0.7,
                     )
-                    return response.choices[0].message.content
+                    return {
+                        "content": response.choices[0].message.content,
+                        "retrieved_chunks_count": len(retrieved_chunks),
+                        "sources": [
+                            {
+                                "source": c["source"],
+                                "page": c["page"],
+                                "similarity": c["similarity_score"]
+                            }
+                            for c in retrieved_chunks
+                        ]
+                    }
                 except Exception:
                     continue
         except Exception:

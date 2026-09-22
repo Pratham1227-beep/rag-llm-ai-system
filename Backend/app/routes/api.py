@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
-from app.services import ai_service, file_service
+from app.services import ai_service, file_service, vector_service
 
 # Define Blueprint
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -10,7 +10,8 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "api_configured": bool(current_app.config['GROQ_API_KEY'])
+        "api_configured": bool(current_app.config['GROQ_API_KEY']),
+        "vector_db": vector_service.get_vector_db_stats()
     })
 
 @api_bp.route('/chat', methods=['POST'])
@@ -20,13 +21,19 @@ def chat():
         if not data or 'messages' not in data:
             return jsonify({"error": "Missing 'messages'"}), 400
 
-        response = ai_service.generate_ai_response(
+        result = ai_service.generate_ai_response(
             data['messages'],
             data.get('uploaded_materials', [])
         )
 
+        content = result["content"] if isinstance(result, dict) else result
+        sources = result.get("sources", []) if isinstance(result, dict) else []
+        retrieved_count = result.get("retrieved_chunks_count", 0) if isinstance(result, dict) else 0
+
         return jsonify({
-            "response": response,
+            "response": content,
+            "sources": sources,
+            "retrieved_chunks_count": retrieved_count,
             "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
@@ -49,10 +56,31 @@ def upload_file():
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
 
+        db_stats = vector_service.get_vector_db_stats()
+
         return jsonify({
             "files": processed_files,
             "count": len(processed_files),
+            "vector_db": db_stats,
             "timestamp": datetime.now().isoformat()
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/vector-db/stats', methods=['GET'])
+def vector_db_stats():
+    """Returns vector database chunk statistics and ingested document details."""
+    try:
+        stats = vector_service.get_vector_db_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/vector-db/clear', methods=['POST'])
+def clear_vector_db():
+    """Resets the vector database."""
+    try:
+        result = vector_service.clear_vector_db()
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

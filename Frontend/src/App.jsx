@@ -88,12 +88,21 @@ function App() {
 
         {/* Uploaded Files Preview Bar */}
         {uploadedFiles.length > 0 && (
-          <div className="bg-emerald-50/50 px-4 py-2 border-b border-emerald-100 overflow-x-auto">
-            <div className="flex space-x-2">
+          <div className="bg-emerald-50/60 px-4 py-2 border-b border-emerald-100 overflow-x-auto">
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-semibold text-emerald-800 flex items-center gap-1.5 shrink-0 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Vector DB
+              </span>
               {uploadedFiles.map(file => (
-                <div key={file.id} className="flex items-center bg-white border border-emerald-200 rounded-md px-2 py-1 shadow-sm">
-                  <Paperclip size={12} className="text-emerald-500 mr-2" />
-                  <span className="text-xs text-gray-700 max-w-[100px] truncate">{file.name}</span>
+                <div key={file.id} className="flex items-center bg-white border border-emerald-200 rounded-lg px-2.5 py-1 shadow-xs text-xs shrink-0">
+                  <Paperclip size={12} className="text-emerald-500 mr-1.5" />
+                  <span className="text-gray-800 font-medium max-w-[130px] truncate" title={file.name}>{file.name}</span>
+                  {file.chunksCreated ? (
+                    <span className="ml-2 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-semibold rounded border border-emerald-100">
+                      {file.chunksCreated} chunks ({file.totalPages}p)
+                    </span>
+                  ) : null}
                   <button onClick={() => removeFile(file.id)} className="ml-2 text-gray-400 hover:text-red-500">
                     <X size={12} />
                   </button>
