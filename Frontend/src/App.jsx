@@ -1,47 +1,15 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
-import { Menu, MoreVertical, Trash2, AlertCircle, X, Paperclip, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, MoreVertical, Trash2, AlertCircle, X, Paperclip } from 'lucide-react';
 import Sidebar from './components/Layout/Sidebar';
 import MessageList from './components/Chat/MessageList';
 import ChatInput from './components/Chat/ChatInput';
-import LoginPage from './components/Auth/LoginPage';
 import { useChatLogic } from './hooks/useChatLogic';
-import { authService } from './services/authService';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
 
-  // On mount, check if user already has a valid token
-  useEffect(() => {
-    if (authService.isAuthenticated()) {
-      setCurrentUser(authService.getUser());
-    }
-    setAuthChecked(true);
-  }, []);
-
-  const handleLogin = (user) => {
-    setCurrentUser(user);
-  };
-
-  const handleLogout = () => {
-    authService.logout();
-    setCurrentUser(null);
-  };
-
-  // Don't render until we've checked localStorage
-  if (!authChecked) return null;
-
-  // Show login page if not authenticated
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
-
-  return <ChatApp currentUser={currentUser} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} onLogout={handleLogout} />;
-}
-
-function ChatApp({ currentUser, sidebarOpen, setSidebarOpen, onLogout }) {
+  // Destructure all logic from our custom hook
   const {
     chats,
     currentChatId,
@@ -95,20 +63,12 @@ function ChatApp({ currentUser, sidebarOpen, setSidebarOpen, onLogout }) {
               </span>
             </div>
           </div>
-          <div className="flex items-center space-x-1">
-            {/* User badge */}
-            <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full mr-1 hidden sm:inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-              {currentUser?.username}
-            </span>
+          <div className="flex space-x-1">
             <button onClick={clearCurrentChat} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition" title="Clear Chat">
               <Trash2 size={18} />
             </button>
             <button onClick={checkBackendHealth} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition" title="Check Connection">
               <MoreVertical size={18} />
-            </button>
-            <button onClick={onLogout} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition" title="Logout" id="logout-btn">
-              <LogOut size={18} />
             </button>
           </div>
         </div>
